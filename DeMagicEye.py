@@ -1,11 +1,11 @@
 from SimpleCV import Image, Display, Color
 import numpy as np
 img = Image('shark.png')
-img = img.scale(0.5)#.blur(window=(7,7))
+#img = img.scale(0.5)#.blur(window=(7,7))
 # roughly the number of tiles in an image
 
 # roughly how far we scan horizontally
-window = 100 #int(img.width/repeats)
+window = 2*100 #int(img.width/repeats)
 repeats = np.floor(img.width/window)
 print "window: {0}".format(window)
 # how big of a signal we convolve 
