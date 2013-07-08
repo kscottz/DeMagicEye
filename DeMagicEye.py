@@ -15,6 +15,7 @@ dmap = np.zeros([img.width-window,img.height])
 # we'll do this with iteration first to test
 # proof of concept.
 print (img.width,img.height)
+npgImg = img.getGrayNumpy()
 for vidx in range(0,img.height):
     print "row {0}".format(vidx)
     for hidx in range(0,img.width-window):
@@ -23,20 +24,22 @@ for vidx in range(0,img.height):
         if( currentWndw >= repeats-1 ):
             continue
 
-        sample = img[hidx:hidx+samplesz,vidx]
+        sample = npgImg[hidx:hidx+samplesz,vidx]
         vals = []
         #print "hidx: {0}".format(hidx)
         #print "currentidx {0} / sz: {1}".format(currentWndw,window)
         
         for sidx in range(0,window-samplesz):
 
-            step = int((currentWndw+1)*window)
+            step = int(((currentWndw+1)*window)-(window/2))
             #print "searching: {0}->{1}".format(step+sidx,step+sidx+samplesz)
-            tester = img[step+sidx:step+sidx+samplesz,vidx]
-            vals.append( np.abs(np.sum((sample-tester).getGrayNumpy())))
+            tester = npgImg[step+sidx:step+sidx+samplesz,vidx]
+            vals.append( np.abs(np.sum(sample-tester)))
         #print vals
         best = np.where(np.array(vals)==np.min(vals))[0]
-        dmap[hidx][vidx] = best[0]
+        # offset is the hidx of the current window
+        offset = hidx - (currentWndw*window)
+        dmap[hidx][vidx] = np.abs(best[0]-offset)
         #print dmap
 print dmap                     
 result = Image(dmap)
