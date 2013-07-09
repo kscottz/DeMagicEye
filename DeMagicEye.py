@@ -1,7 +1,7 @@
 from SimpleCV import Image, Display, Color
 import numpy as np
 import cv2
-img = Image('shark.png')
+img = Image('randot_glass.gif')
 img = img.scale(0.5)
 # roughly the number of tiles in an image
 
@@ -31,20 +31,13 @@ def findOptimalWindow(img, integral, minSplit=4, maxSplit=16):
     for i in range(minWin,maxWin):
         left = integralWindow(0,0,i,img.height,integral)
         right = integralWindow(0,i,2*i,img.height,integral)
-        print left,right
         vals.append(np.abs(left-right)/(i*img.height))
-    print vals
     return np.where(np.array(vals)==np.min(vals))[0][0]
        
-# roughly how far we scan horizontally
-
 integral = cv2.integral(img.getGrayNumpyCv2())
-window = findOptimalWindow(img,integral)
+searchWndw = 1.1
+window = int(searchWndw*findOptimalWindow(img,integral))
 print "window: {0}".format(window)
-
-#window = int(img.width/6) #2*80 #int(img.width/repeats)
-#repeats = np.floor(img.width/window)
-
 # how big of a signal we convolve 
 samplesz = window / 10
 print "sample: {0}".format(samplesz)
@@ -61,7 +54,7 @@ for vidx in range(1,img.height-1): # for each row
         sample = idxToSum(hidx,hidx+samplesz,vidx,integral)
         # try and grok this, go thru a search window, calc the abs diff of sums
         # between or sample and the test window, toss in a list
-        vals = [np.abs(sample-idxToSum(hidx+sidx,hidx+sidx+samplesz,vidx,integral)) for sidx in range((window/2)-samplesz,window-samplesz) ]
+        vals = [np.abs(sample-idxToSum(hidx+sidx,hidx+sidx+samplesz,vidx,integral)) for sidx in range(int(window*0.5),window-samplesz) ]
         # find the minimum match
         best = np.where(np.array(vals)==np.min(vals))[0]
         # offset is the hidx of the current window       
