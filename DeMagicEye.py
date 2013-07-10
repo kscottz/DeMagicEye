@@ -3,6 +3,7 @@ from multiprocessing import Process, Queue
 import numpy as np
 import cv2
 import copy
+import sys
 # caclulate the value of a row
 # using the integral image
 def idxToSum(x1,x2,y,integral):
@@ -34,15 +35,7 @@ def findOptimalWindow(img, integral, minSplit=4, maxSplit=16):
 
 
 def doMagicEye(img, integral, window, samplesz,queue):
-    # img = args['img']
-    # integral = args['integral']
-    # window = args['window']
-    # samplesz = args['samplesz']
-    # queue = args['queue']
     dmap = np.zeros([img.width-window,img.height],dtype='int32')
-    # we'll do this with iteration first to test
-    # proof of concept.
-    # need to double check these bounds with the integral image
     # really wish I could get rid of this iteration
     for vidx in range(1,img.height-1): # for each row
         if vidx%10==0:
@@ -58,39 +51,60 @@ def doMagicEye(img, integral, window, samplesz,queue):
             # offset is the hidx of the current window       
             dmap[hidx][vidx] = best[-1] # if we get > 1 use the furthest one
     # create the raw out
-    #result = Image(dmap)
     queue.put(dmap)
 
 
 def parallelizeMatching(numProc, img, integral, window, samplesz):
+    #create queues
     queues = [Queue() for i in range(0,numProc)]
-    processes = [Process(target=doMagicEye,args=(img[:,i*img.height/numProc:(i+1)*img.height/numProc],integral[i*img.height/numProc:(i+1)*img.height/numProc,:],window,samplesz,queues[i])) for i in range(0,numProc)]
+    #spit the images and set up the processes
+    processes = [Process(target=doMagicEye,
+                         args=(img[:,i*img.height/numProc:(i+1)*img.height/numProc],
+                               integral[i*img.height/numProc:(i+1)*img.height/numProc,:],
+                               window,samplesz,queues[i]))
+                 for i in range(0,numProc)]
+    # and go!
     [p.start() for p in processes]
+    # get the chunks from the process
     chunks = [q.get() for q in queues]
     dmap = np.zeros([img.width-window,img.height],dtype='int32')
+    # reassmble the chunks
     for i,chunk in zip(range(0,numProc),chunks):
         dmap[:,i*img.height/numProc:(i+1)*img.height/numProc] = chunk
+    #kill the processes
     [p.terminate() for p in processes]
     return dmap
 
-img = Image('shark.png')
-img = img.scale(1)
-# roughly the number of tiles in an image
-integral = cv2.integral(img.getGrayNumpyCv2())
-searchWndw = 1.1
-window = int(searchWndw*findOptimalWindow(img,integral))
-print "window: {0}".format(window)
-# how big of a signal we convolve 
-samplesz = window / 10
-print "sample: {0}".format(samplesz)
-numProc = 4
-dmap = parallelizeMatching(numProc, img, integral, window, samplesz)
+
+if __name__ == "__main__":
+    if( len(sys.argv) > 3 or len(sys.argv) < 2 ):
+        print "USAGE: DeMagicEye <infile> <outfile_stem>"
+        exit
     
-result = Image(dmap)
-#result = doMagicEye(img,integral,window,samplesz)
-result.save('outputRAW.png')
-# create the cleaned up output
-result = result.medianFilter().equalize().invert().blur(window=(5,5))
-result.save('outputEqualize.png')
-sbs = img.sideBySide(result)
-sbs.save('result.png')
+    ifile = str(sys.argv[1])
+    stub = str(sys.argv[2])
+    searchWndw = 1.1
+    if( len(sys.argv) == 4 ):
+        searchWndw = float(sys.argv[3])
+    img = Image(ifile)
+    #img = img.scale(1)
+    # create the integral image
+    integral = cv2.integral(img.getGrayNumpyCv2())
+    
+    # find our search window and make it big
+    window = int(searchWndw*findOptimalWindow(img,integral))
+    print searchWndw
+    print "image: {0}x{1}".format(img.width,img.height)
+    print "window: {0}".format(window)
+    # how big of a signal we match on 
+    samplesz = window / 10
+    print "sample: {0}".format(samplesz)
+    numProc = 4
+    dmap = parallelizeMatching(numProc, img, integral, window, samplesz)
+    result = Image(dmap)
+    result.save('{0}RAW.png'.format(stub))
+    # create the cleaned up output
+    result = result.medianFilter().equalize().invert().blur(window=(5,5))
+    result.save('{0}Equalized.png'.format(stub))
+    sbs = img.sideBySide(result)
+    sbs.save('{0}.png'.format(stub))
