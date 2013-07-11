@@ -4,6 +4,7 @@ import numpy as np
 import cv2
 import copy
 import sys
+
 # caclulate the value of a row
 # using the integral image
 def idxToSum(x1,x2,y,integral):
@@ -34,6 +35,7 @@ def findOptimalWindow(img, integral, minSplit=4, maxSplit=16):
     return np.where(np.array(vals)==np.min(vals))[0][0]
 
 
+# get depth map
 def doMagicEye(img, integral, window, samplesz,queue):
     dmap = np.zeros([img.width-window,img.height],dtype='int32')
     # really wish I could get rid of this iteration
@@ -54,6 +56,7 @@ def doMagicEye(img, integral, window, samplesz,queue):
     queue.put(dmap)
 
 
+# speed up image processing with parallelism
 def parallelizeMatching(numProc, img, integral, window, samplesz):
     #create queues
     queues = [Queue() for i in range(0,numProc)]
@@ -77,15 +80,20 @@ def parallelizeMatching(numProc, img, integral, window, samplesz):
 
 
 if __name__ == "__main__":
+
+    # check arguments
     if( len(sys.argv) > 3 or len(sys.argv) < 2 ):
-        print "USAGE: DeMagicEye <infile> <outfile_stem>"
+        print "USAGE: DeMagicEye <infile> <outfile_stem> [search_window]"
         exit()
-    
+
+    # get input file, output stem, and optional search window
     ifile = str(sys.argv[1])
     stub = str(sys.argv[2])
     searchWndw = 1.1
     if( len(sys.argv) == 4 ):
         searchWndw = float(sys.argv[3])
+
+    # open image and create integral image
     img = Image(ifile)
     #img = img.scale(1)
     # create the integral image
@@ -96,6 +104,7 @@ if __name__ == "__main__":
     print searchWndw
     print "image: {0}x{1}".format(img.width,img.height)
     print "window: {0}".format(window)
+
     # how big of a signal we match on 
     samplesz = window / 10
     print "sample: {0}".format(samplesz)
@@ -103,8 +112,10 @@ if __name__ == "__main__":
     dmap = parallelizeMatching(numProc, img, integral, window, samplesz)
     result = Image(dmap)
     result.save('{0}RAW.png'.format(stub))
+
     # create the cleaned up output
     result = result.medianFilter().equalize().invert().blur(window=(5,5))
     result.save('{0}Equalized.png'.format(stub))
     sbs = img.sideBySide(result)
     sbs.save('{0}.png'.format(stub))
+
