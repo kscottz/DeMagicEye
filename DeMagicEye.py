@@ -79,7 +79,7 @@ def parallelizeMatching(numProc, img, integral, window, samplesz):
 if __name__ == "__main__":
     if( len(sys.argv) > 3 or len(sys.argv) < 2 ):
         print "USAGE: DeMagicEye <infile> <outfile_stem>"
-        exit
+        exit()
     
     ifile = str(sys.argv[1])
     stub = str(sys.argv[2])
